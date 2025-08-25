@@ -1,0 +1,33 @@
+# GoFrame配置文件
+server:
+  address: ":8080"
+  serverRoot: "public"
+  accessLogEnabled: true
+  errorLogEnabled: true
+  pprofEnabled: true
+
+# 数据库配置
+database:
+  default:
+    link: "pgsql:user=postgres password=123456 host=postgres port=5432 dbname=contextid sslmode=disable"
+    debug: true
+
+# Casdoor配置
+casdoor:
+  endpoint: "http://casdoor:8000"
+  clientId: "87e7e4048518f0347d16"
+  clientSecret: "5118636a96106d987a5310f7723bca693fef09de"
+  jwtSecret: "jwt-secret-key"
+  organizationName: "built-in"
+  applicationName: "context-id-app"
+
+# Redis配置（可选，用于缓存）
+redis:
+  default:
+    address: "redis:6379"
+    db: 0
+
+# 日志配置
+logger:
+  level: "all"
+  stdout: true

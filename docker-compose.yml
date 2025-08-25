@@ -1,0 +1,124 @@
+version: '3.8'
+
+services:
+  # PostgreSQL数据库
+  postgres:
+    image: postgres:15-alpine
+    container_name: contextid-postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: 123456
+      POSTGRES_DB: contextid
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./sql/init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5432:5432"
+    networks:
+      - contextid-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Casdoor数据库（单独的PostgreSQL实例）
+  casdoor-db:
+    image: postgres:15-alpine
+    container_name: casdoor-postgres
+    environment:
+      POSTGRES_USER: casdoor
+      POSTGRES_PASSWORD: casdoor_password
+      POSTGRES_DB: casdoor
+    volumes:
+      - casdoor_db_data:/var/lib/postgresql/data
+    ports:
+      - "5433:5432"
+    networks:
+      - contextid-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U casdoor"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Casdoor认证服务
+  casdoor:
+    image: casbin/casdoor:latest
+    container_name: contextid-casdoor
+    restart: always
+    ports:
+      - "8000:8000"
+    depends_on:
+      casdoor-db:
+        condition: service_healthy
+    volumes:
+      - ./casdoor/app.conf:/conf/app.conf
+      - ./casdoor/init_data.json:/init_data.json
+    environment:
+      RUNNING_IN_DOCKER: "true"
+    networks:
+      - contextid-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/get-account"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # Redis缓存（可选）
+  redis:
+    image: redis:7-alpine
+    container_name: contextid-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - contextid-network
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # GoFrame后端服务
+  backend:
+    build: 
+      context: .
+      dockerfile: Dockerfile
+    container_name: contextid-backend
+    restart: always
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      casdoor:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      - GF_GCFG_FILE=/app/conf/config.yaml
+    volumes:
+      - ./conf:/app/conf
+      - ./logs:/app/logs
+    networks:
+      - contextid-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+volumes:
+  postgres_data:
+    driver: local
+  casdoor_db_data:
+    driver: local
+  redis_data:
+    driver: local
+
+networks:
+  contextid-network:
+    driver: bridge
