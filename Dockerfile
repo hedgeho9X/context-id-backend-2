@@ -1,5 +1,5 @@
 # 使用官方Golang镜像作为构建环境
-FROM golang:1.21-alpine AS builder
+FROM golang:1.23-alpine AS builder
 
 # 设置工作目录
 WORKDIR /app
@@ -31,11 +31,19 @@ WORKDIR /app
 # 从构建阶段复制二进制文件
 COPY --from=builder /app/main .
 
-# 复制静态文件
-COPY public/ ./public/
+# 复制配置文件
+COPY conf/ ./conf/
+
+# 将config.yaml复制到GoFrame默认搜索路径
+COPY conf/config.yaml ./config.yaml
+COPY conf/config.yaml ./config/config.yaml
+
+# 复制静态文件目录
+COPY static/ ./static/
+COPY templates/ ./templates/
 
 # 创建必要的目录
-RUN mkdir -p /app/conf /app/logs /app/public
+RUN mkdir -p /app/conf /app/config /app/logs
 
 # 设置时区
 ENV TZ=Asia/Shanghai

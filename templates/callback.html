@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>登录成功 - Casdoor示例</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+        }
+        
+        .container {
+            background: white;
+            padding: 3rem;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            text-align: center;
+            max-width: 500px;
+            width: 100%;
+        }
+        
+        .success-icon {
+            width: 100px;
+            height: 100px;
+            background: #28a745;
+            border-radius: 50%;
+            margin: 0 auto 2rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 3rem;
+            color: white;
+        }
+        
+        h1 {
+            color: #28a745;
+            margin-bottom: 1rem;
+            font-size: 2.5rem;
+        }
+        
+        .subtitle {
+            color: #666;
+            margin-bottom: 2rem;
+            font-size: 1.2rem;
+        }
+        
+        .user-info {
+            background: #f8f9fa;
+            padding: 2rem;
+            border-radius: 15px;
+            margin: 2rem 0;
+            text-align: left;
+        }
+        
+        .user-info h3 {
+            color: #333;
+            margin-bottom: 1.5rem;
+            text-align: center;
+            font-size: 1.3rem;
+        }
+        
+        .user-detail {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.8rem 0;
+            border-bottom: 1px solid #e9ecef;
+        }
+        
+        .user-detail:last-child {
+            border-bottom: none;
+        }
+        
+        .user-detail .label {
+            font-weight: 600;
+            color: #495057;
+            min-width: 100px;
+        }
+        
+        .user-detail .value {
+            color: #333;
+            flex: 1;
+            text-align: right;
+            word-break: break-all;
+        }
+        
+        .avatar {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            margin: 0 auto 1rem;
+            object-fit: cover;
+        }
+        
+        .token-section {
+            background: #e3f2fd;
+            padding: 1.5rem;
+            border-radius: 10px;
+            margin: 2rem 0;
+        }
+        
+        .token-section h4 {
+            color: #1976d2;
+            margin-bottom: 1rem;
+        }
+        
+        .token-display {
+            background: white;
+            padding: 1rem;
+            border-radius: 5px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+            color: #333;
+            word-break: break-all;
+            border: 1px solid #bbdefb;
+        }
+        
+        .actions {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            margin-top: 2rem;
+        }
+        
+        .btn {
+            padding: 1rem 2rem;
+            border: none;
+            border-radius: 50px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-block;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(45deg, #007bff, #0056b3);
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(0, 123, 255, 0.3);
+        }
+        
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+        
+        .btn-secondary:hover {
+            background: #5a6268;
+            transform: translateY(-2px);
+        }
+        
+        .copy-btn {
+            background: #17a2b8;
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-top: 0.5rem;
+            font-size: 0.9rem;
+        }
+        
+        .copy-btn:hover {
+            background: #138496;
+        }
+        
+        .note {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            color: #856404;
+            padding: 1rem;
+            border-radius: 10px;
+            margin-top: 2rem;
+            font-size: 0.9rem;
+        }
+        
+        @media (max-width: 600px) {
+            .actions {
+                flex-direction: column;
+            }
+            
+            .container {
+                padding: 2rem;
+            }
+            
+            .user-detail {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 0.5rem;
+            }
+            
+            .user-detail .value {
+                text-align: left;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="success-icon">✅</div>
+        <h1>登录成功！</h1>
+        <p class="subtitle">欢迎通过Casdoor认证系统登录</p>
+        
+        <div class="user-info">
+            <h3>👤 用户信息</h3>
+            
+            {{if .user.Avatar}}
+            <img src="{{.user.Avatar}}" alt="用户头像" class="avatar">
+            {{end}}
+            
+            <div class="user-detail">
+                <span class="label">用户名：</span>
+                <span class="value">{{.user.Username}}</span>
+            </div>
+            
+            {{if .user.DisplayName}}
+            <div class="user-detail">
+                <span class="label">显示名称：</span>
+                <span class="value">{{.user.DisplayName}}</span>
+            </div>
+            {{end}}
+            
+            {{if .user.Email}}
+            <div class="user-detail">
+                <span class="label">邮箱：</span>
+                <span class="value">{{.user.Email}}</span>
+            </div>
+            {{end}}
+            
+            {{if .user.Phone}}
+            <div class="user-detail">
+                <span class="label">手机：</span>
+                <span class="value">{{.user.Phone}}</span>
+            </div>
+            {{end}}
+        </div>
+        
+        <div class="token-section">
+            <h4>🔑 访问令牌（Access Token）</h4>
+            <div class="token-display" id="tokenDisplay">{{.token}}</div>
+            <button class="copy-btn" onclick="copyToken()">复制Token</button>
+        </div>
+        
+        <div class="actions">
+            <a href="/template/dashboard" class="btn btn-primary">进入仪表板</a>
+            <a href="/template/login" class="btn btn-secondary">返回首页</a>
+        </div>
+        
+        <div class="note">
+            <strong>说明：</strong> 这个Access Token可以用来访问受保护的API接口。在实际应用中，通常会保存在浏览器的localStorage或cookie中，并在每次API请求时携带。
+        </div>
+    </div>
+
+    <script>
+        // 页面加载时自动处理认证
+        window.addEventListener('load', function() {
+            handleCallback();
+        });
+        
+        // 处理OAuth回调
+        async function handleCallback() {
+            // 从URL参数获取code和state
+            const urlParams = new URLSearchParams(window.location.search);
+            const code = urlParams.get('code');
+            const state = urlParams.get('state');
+            
+            if (!code) {
+                showError('缺少认证码，登录流程异常');
+                return;
+            }
+            
+            try {
+                // 通过POST API安全地获取token（放在请求头中）
+                const response = await fetch('/api/v1/auth/callback', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        code: code,
+                        state: state
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok && data.code === 200) {
+                    // 登录成功，显示用户信息
+                    showUserInfo(data.data.user, data.data.token);
+                } else {
+                    throw new Error(data.message || '登录失败');
+                }
+            } catch (error) {
+                console.error('认证失败:', error);
+                showError('认证失败: ' + error.message);
+            }
+        }
+        
+        // 显示用户信息
+        function showUserInfo(user, token) {
+            // 隐藏加载状态
+            document.getElementById('loading').style.display = 'none';
+            
+            // 显示用户信息
+            document.getElementById('username').textContent = user.username || '-';
+            document.getElementById('displayName').textContent = user.displayName || '-';
+            document.getElementById('email').textContent = user.email || '-';
+            document.getElementById('phone').textContent = user.phone || '-';
+            
+            if (user.avatar) {
+                const avatar = document.getElementById('userAvatar');
+                avatar.src = user.avatar;
+                avatar.style.display = 'block';
+            }
+            
+            document.getElementById('userInfo').style.display = 'block';
+            
+            // 显示token（注意：token现在安全地通过API获取）
+            document.getElementById('tokenDisplay').textContent = token;
+            document.getElementById('tokenSection').style.display = 'block';
+            
+            // 保存到localStorage
+            localStorage.setItem('casdoor_token', token);
+            localStorage.setItem('casdoor_user', JSON.stringify(user));
+            
+            console.log('🎉 登录成功！');
+            console.log('用户信息：', user);
+            console.log('Token已安全保存到localStorage');
+        }
+        
+        // 显示错误信息
+        function showError(message) {
+            document.getElementById('loading').innerHTML = 
+                '<h3>❌ 登录失败</h3><p>' + message + '</p>';
+        }
+        
+        // 复制token到剪贴板
+        function copyToken() {
+            const tokenDisplay = document.getElementById('tokenDisplay');
+            const token = tokenDisplay.textContent;
+            
+            if (token === '正在获取...') {
+                alert('Token还在获取中，请稍候');
+                return;
+            }
+            
+            navigator.clipboard.writeText(token).then(function() {
+                const copyBtn = document.querySelector('.copy-btn');
+                const originalText = copyBtn.textContent;
+                copyBtn.textContent = '已复制！';
+                copyBtn.style.background = '#28a745';
+                
+                setTimeout(function() {
+                    copyBtn.textContent = originalText;
+                    copyBtn.style.background = '#17a2b8';
+                }, 2000);
+            }).catch(function(err) {
+                console.error('复制失败: ', err);
+                alert('复制失败，请手动选择文本复制');
+            });
+        }
+    </script>
+</body>
+</html>

@@ -18,9 +18,10 @@ func Auth(r *ghttp.Request) {
 		"/api/v1/auth/login",
 		"/api/v1/auth/callback",
 		"/api/v1/auth/url",
+		"/api/v1/login-url", // 新增：登录URL获取接口
 		"/favicon.ico",
 	}
-	
+
 	// 跳过静态文件
 	staticExtensions := []string{".html", ".css", ".js", ".png", ".jpg", ".jpeg", ".gif", ".ico", ".svg"}
 	for _, ext := range staticExtensions {
@@ -29,7 +30,7 @@ func Auth(r *ghttp.Request) {
 			return
 		}
 	}
-	
+
 	// 如果是根路径，也跳过认证（用于访问首页）
 	if r.URL.Path == "/" {
 		r.Middleware.Next()

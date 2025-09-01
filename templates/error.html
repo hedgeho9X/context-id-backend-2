@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>出错了 - Casdoor示例</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+            background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+        }
+        
+        .container {
+            background: white;
+            padding: 3rem;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            text-align: center;
+            max-width: 500px;
+            width: 100%;
+        }
+        
+        .error-icon {
+            width: 100px;
+            height: 100px;
+            background: #ff6b6b;
+            border-radius: 50%;
+            margin: 0 auto 2rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 3rem;
+            color: white;
+        }
+        
+        h1 {
+            color: #ff6b6b;
+            margin-bottom: 1rem;
+            font-size: 2.5rem;
+        }
+        
+        .subtitle {
+            color: #666;
+            margin-bottom: 2rem;
+            font-size: 1.2rem;
+        }
+        
+        .error-message {
+            background: #f8f9fa;
+            padding: 2rem;
+            border-radius: 15px;
+            margin: 2rem 0;
+            border-left: 4px solid #ff6b6b;
+        }
+        
+        .error-message h3 {
+            color: #333;
+            margin-bottom: 1rem;
+            font-size: 1.3rem;
+        }
+        
+        .error-text {
+            color: #666;
+            font-size: 1.1rem;
+            line-height: 1.6;
+            word-break: break-word;
+        }
+        
+        .actions {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            margin-top: 2rem;
+        }
+        
+        .btn {
+            padding: 1rem 2rem;
+            border: none;
+            border-radius: 50px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-block;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(45deg, #007bff, #0056b3);
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(0, 123, 255, 0.3);
+        }
+        
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+        
+        .btn-secondary:hover {
+            background: #5a6268;
+            transform: translateY(-2px);
+        }
+        
+        .help-section {
+            background: #e3f2fd;
+            padding: 1.5rem;
+            border-radius: 10px;
+            margin-top: 2rem;
+            text-align: left;
+        }
+        
+        .help-section h4 {
+            color: #1976d2;
+            margin-bottom: 1rem;
+        }
+        
+        .help-section ul {
+            color: #666;
+            padding-left: 1.5rem;
+        }
+        
+        .help-section li {
+            margin-bottom: 0.5rem;
+        }
+        
+        @media (max-width: 600px) {
+            .actions {
+                flex-direction: column;
+            }
+            
+            .container {
+                padding: 2rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="error-icon">❌</div>
+        <h1>出错了</h1>
+        <p class="subtitle">认证过程中发生了错误</p>
+        
+        <div class="error-message">
+            <h3>错误详情</h3>
+            <div class="error-text">
+                {{if .error}}
+                    {{.error}}
+                {{else}}
+                    未知错误，请稍后重试
+                {{end}}
+            </div>
+        </div>
+        
+        <div class="actions">
+            <a href="/template/login" class="btn btn-primary">重新登录</a>
+            <button class="btn btn-secondary" onclick="history.back()">返回上一页</button>
+        </div>
+        
+        <div class="help-section">
+            <h4>常见问题解决方案：</h4>
+            <ul>
+                <li><strong>授权码错误：</strong> 请不要重复使用登录链接，每次都需要获取新的登录链接</li>
+                <li><strong>状态参数错误：</strong> 请确保完整的回调流程，不要手动修改URL</li>
+                <li><strong>Token过期：</strong> 请重新登录获取新的访问令牌</li>
+                <li><strong>网络错误：</strong> 请检查Casdoor服务是否正常运行</li>
+                <li><strong>配置错误：</strong> 请检查ClientID、ClientSecret等配置信息</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        console.error('认证错误:', '{{.error}}');
+        
+        // 如果错误是Token相关的，清除本地存储
+        const errorMessage = '{{.error}}';
+        if (errorMessage.includes('token') || errorMessage.includes('Token') || 
+            errorMessage.includes('令牌') || errorMessage.includes('认证')) {
+            localStorage.removeItem('casdoor_token');
+            localStorage.removeItem('casdoor_user');
+            console.log('已清除本地认证信息');
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>出现错误 - Context-ID</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+            background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+        }
+        
+        .container {
+            background: white;
+            padding: 3rem;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            text-align: center;
+            max-width: 500px;
+            width: 100%;
+        }
+        
+        .error-icon {
+            width: 100px;
+            height: 100px;
+            background: #dc3545;
+            border-radius: 50%;
+            margin: 0 auto 2rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 3rem;
+            color: white;
+        }
+        
+        h1 {
+            color: #dc3545;
+            margin-bottom: 1rem;
+            font-size: 2.5rem;
+        }
+        
+        .subtitle {
+            color: #666;
+            margin-bottom: 2rem;
+            font-size: 1.2rem;
+        }
+        
+        .error-info {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 1.5rem;
+            border-radius: 10px;
+            margin: 2rem 0;
+            text-align: left;
+        }
+        
+        .error-info h3 {
+            margin-bottom: 1rem;
+            font-size: 1.2rem;
+        }
+        
+        .error-details {
+            font-family: 'Courier New', monospace;
+            background: white;
+            padding: 1rem;
+            border-radius: 5px;
+            margin-top: 1rem;
+            word-break: break-all;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .actions {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            margin-top: 2rem;
+        }
+        
+        .btn {
+            padding: 1rem 2rem;
+            border: none;
+            border-radius: 50px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-block;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(45deg, #007bff, #0056b3);
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(0, 123, 255, 0.3);
+        }
+        
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+        
+        .btn-secondary:hover {
+            background: #5a6268;
+            transform: translateY(-2px);
+        }
+
+        .help-section {
+            background: #fff3e0;
+            padding: 1.5rem;
+            border-radius: 10px;
+            margin-top: 2rem;
+            text-align: left;
+        }
+
+        .help-section h4 {
+            color: #e65100;
+            margin-bottom: 1rem;
+        }
+
+        .help-section ul {
+            color: #666;
+            padding-left: 1.5rem;
+        }
+
+        .help-section li {
+            margin-bottom: 0.5rem;
+        }
+        
+        @media (max-width: 600px) {
+            .actions {
+                flex-direction: column;
+            }
+            
+            .container {
+                padding: 2rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="error-icon">❌</div>
+        <h1>出现错误</h1>
+        <p class="subtitle">很抱歉，系统遇到了一些问题</p>
+        
+        <div class="error-info">
+            <h3>错误详情：</h3>
+            <p id="errorMessage">未知错误</p>
+            <div class="error-details" id="errorDetails" style="display: none;"></div>
+        </div>
+        
+        <div class="help-section">
+            <h4>💡 可能的解决方案：</h4>
+            <ul>
+                <li>检查网络连接是否正常</li>
+                <li>确认Casdoor服务是否正在运行</li>
+                <li>验证配置信息是否正确</li>
+                <li>尝试清除浏览器缓存和Cookie</li>
+                <li>重新启动应用服务</li>
+            </ul>
+        </div>
+        
+        <div class="actions">
+            <a href="/login" class="btn btn-primary">返回登录</a>
+            <a href="/" class="btn btn-secondary">返回首页</a>
+        </div>
+    </div>
+
+    <script>
+        // 页面加载时处理错误信息
+        window.addEventListener('load', function() {
+            handleError();
+        });
+
+        function handleError() {
+            // 从URL参数获取错误信息
+            const urlParams = new URLSearchParams(window.location.search);
+            const error = urlParams.get('error');
+            const errorDescription = urlParams.get('error_description');
+            const details = urlParams.get('details');
+
+            // 从localStorage获取错误信息（如果有的话）
+            const storedError = localStorage.getItem('last_error');
+            
+            let errorMessage = '未知错误';
+            let errorDetails = '';
+
+            if (error) {
+                errorMessage = decodeURIComponent(error);
+                if (errorDescription) {
+                    errorDetails = decodeURIComponent(errorDescription);
+                }
+            } else if (storedError) {
+                try {
+                    const errorObj = JSON.parse(storedError);
+                    errorMessage = errorObj.message || '未知错误';
+                    errorDetails = errorObj.details || '';
+                } catch (e) {
+                    errorMessage = storedError;
+                }
+                // 清除存储的错误信息
+                localStorage.removeItem('last_error');
+            }
+
+            if (details) {
+                errorDetails = decodeURIComponent(details);
+            }
+
+            // 显示错误信息
+            document.getElementById('errorMessage').textContent = errorMessage;
+            
+            if (errorDetails) {
+                document.getElementById('errorDetails').textContent = errorDetails;
+                document.getElementById('errorDetails').style.display = 'block';
+            }
+
+            console.error('页面错误:', { errorMessage, errorDetails });
+        }
+
+        // 提供一个全局函数用于显示错误
+        window.showError = function(message, details) {
+            document.getElementById('errorMessage').textContent = message;
+            if (details) {
+                document.getElementById('errorDetails').textContent = details;
+                document.getElementById('errorDetails').style.display = 'block';
+            }
+        };
+
+        // 监听全局错误
+        window.addEventListener('error', function(event) {
+            console.error('JavaScript错误:', event.error);
+            // 可以选择显示JavaScript错误
+        });
+
+        // 监听未处理的Promise拒绝
+        window.addEventListener('unhandledrejection', function(event) {
+            console.error('未处理的Promise拒绝:', event.reason);
+            // 可以选择显示Promise错误
+        });
+    </script>
+</body>
+</html>

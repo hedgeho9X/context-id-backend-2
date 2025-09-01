@@ -1,7 +1,6 @@
 # GoFrame配置文件
 server:
   address: ":8080"
-  serverRoot: "public"
   accessLogEnabled: true
   errorLogEnabled: true
   pprofEnabled: true
@@ -9,22 +8,23 @@ server:
 # 数据库配置
 database:
   default:
-    link: "pgsql:user=postgres password=123456 host=postgres port=5432 dbname=contextid sslmode=disable"
+    link: "pgsql:postgres:123456@tcp(context-id-backend.zeabur.internal:5432)/contextid?sslmode=disable"
     debug: true
+
 
 # Casdoor配置
 casdoor:
-  endpoint: "http://casdoor:8000"
-  clientId: "87e7e4048518f0347d16"
-  clientSecret: "5118636a96106d987a5310f7723bca693fef09de"
-  jwtSecret: "jwt-secret-key"
-  organizationName: "built-in"
-  applicationName: "context-id-app"
+  endpoint: "http://context-id-backend.zeabur.internal:8000"
+  externalEndpoint: "https://contextid-backend-dev-casdoor.zeabur.app"
+  clientId: "ca09f4429d05c4226155"
+  clientSecret: "71a26d426be2d0312fcd2e10a072ebaa1ce51ed0"
+  organizationName: "Context-ID"
+  applicationName: "Context-ID-DEV"
 
 # Redis配置（可选，用于缓存）
 redis:
   default:
-    address: "redis:6379"
+    address: "context-id-backend.zeabur.internal:6379"
     db: 0
 
 # 日志配置
