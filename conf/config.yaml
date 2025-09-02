@@ -18,6 +18,7 @@ casdoor:
   externalEndpoint: "https://contextid-backend-dev-casdoor.zeabur.app"
   clientId: "ca09f4429d05c4226155"
   clientSecret: "71a26d426be2d0312fcd2e10a072ebaa1ce51ed0"
+  jwtSecret: "-----BEGIN PUBLIC KEY-----\nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8AMIICCgKCAgEAz2UUMc5pG2/EcW5wC/Hr\n5bBVpJyirpdv6pSveZW65kYpWBI1DnoWlPdX/itkpWWtt4ck1l0PlTmbPEcI0F4j\nKh3ZkwSQhI+nuXte8mIcm8yzKvLUQ035ukwF91YAFNX9b/tsCA5modxMqvT+y5r8\nAeYqVtLmRjbui3zhRo2uHpdo9i+oIiRD9IWcoTzQJZJPiOWzegFcZiHWXwAQgxRl\nxU67aTYSAux0hhyG1FKsY6grVzR1a0t6xVeo0z2Jh3807Y6pGRcp47B3Sn0k0aBq\nMjvgnge8YK0bZFpSuouLxOayZd7HtNqCLqj1nMaJ8o4dRyGVDtgAXoFBmHddJaFv\nvhw4htlT4Q8mDH8OHA4mQMHw5qot9/pmyxk068EZWeNJDbPb/vqkcrIn3AoG3dUb\nx+gnrQj9OlhKNzpFwH9n0e+/rWPpRwUBXnl6zC5VlgIMO8uLhaQB2gEv5QBr5Odl\nVlG/vzbMb+sDNxY2du2PJGTo6+QLOIDNcfrKBgWF3lk+qh1jc9YDDqPib5x2n9Ly\nOacVMcwJM49uDzfxszU57Nivze9CSjmKYgOKhCIPlPS4ReRsPSrrxNy2ji7wKp5a\nONTMxt1fLvSBhgbvDCn62TNHYFmifdycj18MwAzT2gpFJEMtFGh6XmbOWcEAWoqC\nw+F4xWQ/BwoYOF9JjeOLH18CAwEAAQ==\n-----END PUBLIC KEY-----"
   organizationName: "Context-ID"
   applicationName: "Context-ID-DEV"
 

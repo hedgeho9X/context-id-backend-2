@@ -22,7 +22,7 @@ type CasdoorConfig struct {
 	ExternalEndpoint string // 外部访问地址（浏览器）
 	ClientId         string
 	ClientSecret     string
-	JwtSecret        string
+	JwtSecret        string // JWT公钥，仅支持PEM格式公钥文件内容
 	OrganizationName string
 	ApplicationName  string
 }
@@ -39,7 +39,7 @@ func (s *CasdoorService) Init(ctx context.Context) error {
 	g.Log().Info(ctx, "正在初始化Casdoor服务...")
 
 	// 1. 尝试加载环境变量文件
-	envFiles := []string{".env", "config.env", "config.example.env"}
+	envFiles := []string{".env"}
 	loaded := false
 
 	for _, envFile := range envFiles {
@@ -84,6 +84,15 @@ func (s *CasdoorService) Init(ctx context.Context) error {
 	g.Log().Info(ctx, "   - Organization:", config.OrganizationName)
 	g.Log().Info(ctx, "   - Application:", config.ApplicationName)
 
+	// 记录JWT密钥信息
+	if strings.Contains(config.JwtSecret, "-----BEGIN PUBLIC KEY-----") {
+		g.Log().Info(ctx, "   - JWT密钥类型: RS256 (PEM公钥)")
+	} else if len(config.JwtSecret) < 100 {
+		g.Log().Info(ctx, "   - JWT密钥类型: HS256 (对称密钥)")
+	} else {
+		g.Log().Info(ctx, "   - JWT密钥: 已配置")
+	}
+
 	return nil
 }
 
@@ -105,7 +114,9 @@ func (s *CasdoorService) loadConfig(ctx context.Context) (*CasdoorConfig, error)
 		config.ClientSecret = clientSecret
 	}
 	if jwtSecret := os.Getenv("CASDOOR_JWT_SECRET"); jwtSecret != "" {
+		g.Log().Info(ctx, "🔑 从环境变量加载JWT密钥:", jwtSecret)
 		config.JwtSecret = s.loadJwtSecret(ctx, jwtSecret)
+		g.Log().Info(ctx, "🔑 JWT密钥加载结果长度:", len(config.JwtSecret))
 	}
 	if orgName := os.Getenv("CASDOOR_ORGANIZATION_NAME"); orgName != "" {
 		config.OrganizationName = orgName
@@ -147,7 +158,23 @@ func (s *CasdoorService) loadConfig(ctx context.Context) (*CasdoorConfig, error)
 			if jwtSecret, err := cfg.Get(ctx, "casdoor.jwtSecret"); err == nil && jwtSecret != nil {
 				config.JwtSecret = s.loadJwtSecret(ctx, jwtSecret.String())
 			} else {
-				config.JwtSecret = "jwt-secret-key"
+				// 尝试默认的公钥文件路径
+				defaultPaths := []string{
+					"./certs/token_jwt_public_key.pem",
+				}
+				loaded := false
+				for _, path := range defaultPaths {
+					if _, err := os.Stat(path); err == nil {
+						config.JwtSecret = s.loadJwtSecret(ctx, path)
+						g.Log().Info(ctx, "✅ 使用默认公钥文件:", path)
+						loaded = true
+						break
+					}
+				}
+				if !loaded {
+					g.Log().Warning(ctx, "⚠️ 未找到默认公钥文件，请确保已配置JWT密钥")
+					config.JwtSecret = "" // 设置为空，让后续验证处理
+				}
 			}
 		}
 		if config.OrganizationName == "" {
@@ -169,19 +196,20 @@ func (s *CasdoorService) loadConfig(ctx context.Context) (*CasdoorConfig, error)
 	return config, nil
 }
 
-// loadJwtSecret 加载JWT密钥，支持文件路径和直接内容
+// loadJwtSecret 加载JWT密钥 (参考tutorial的成功方法)
 func (s *CasdoorService) loadJwtSecret(ctx context.Context, jwtSecret string) string {
 	// 如果是文件路径，读取文件内容
-	if strings.HasPrefix(jwtSecret, "/") || strings.HasPrefix(jwtSecret, "./") {
+	if strings.HasPrefix(jwtSecret, "/") || strings.HasPrefix(jwtSecret, "./") || strings.HasSuffix(jwtSecret, ".pem") {
 		if content, err := os.ReadFile(jwtSecret); err == nil {
 			g.Log().Info(ctx, "✅ 成功从文件加载JWT密钥:", jwtSecret)
-			return string(content)
+			// 简单处理，移除多余的空白字符但不做严格验证
+			return strings.TrimSpace(string(content))
 		} else {
 			g.Log().Warning(ctx, "❌ 无法读取JWT密钥文件:", jwtSecret, "错误:", err)
 			return jwtSecret // 回退到原始值
 		}
 	} else {
-		// 处理换行符转换
+		// 直接处理密钥内容（参考tutorial方法）
 		return strings.ReplaceAll(jwtSecret, "\\n", "\n")
 	}
 }
@@ -189,22 +217,22 @@ func (s *CasdoorService) loadJwtSecret(ctx context.Context, jwtSecret string) st
 // validateConfig 验证配置 (参考tutorial实现)
 func (s *CasdoorService) validateConfig(config *CasdoorConfig) error {
 	if config.Endpoint == "" {
-		return fmt.Errorf("Casdoor endpoint 不能为空")
+		return fmt.Errorf("casdoor endpoint 不能为空")
 	}
 	if config.ClientId == "" {
-		return fmt.Errorf("Casdoor client ID 不能为空")
+		return fmt.Errorf("casdoor client ID 不能为空")
 	}
 	if config.ClientSecret == "" {
-		return fmt.Errorf("Casdoor client secret 不能为空")
+		return fmt.Errorf("casdoor client secret 不能为空")
 	}
 	if config.JwtSecret == "" {
-		return fmt.Errorf("Casdoor JWT secret 不能为空")
+		return fmt.Errorf("casdoor JWT secret 不能为空")
 	}
 	if config.OrganizationName == "" {
-		return fmt.Errorf("Casdoor organization name 不能为空")
+		return fmt.Errorf("casdoor organization name 不能为空")
 	}
 	if config.ApplicationName == "" {
-		return fmt.Errorf("Casdoor application name 不能为空")
+		return fmt.Errorf("casdoor application name 不能为空")
 	}
 	return nil
 }
