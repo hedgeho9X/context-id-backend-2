@@ -107,6 +107,9 @@ services:
       - CASDOOR_JWT_SECRET=/app/certs/casdoor_public_key.pem
       - CASDOOR_ORGANIZATION_NAME=Context-ID
       - CASDOOR_APPLICATION_NAME=Context-ID-DEV
+      # 应用外部访问地址配置（生产环境时请修改为实际的域名或IP）
+      - APP_EXTERNAL_URL=http://8.136.14.242:8080
+      - APP_CASDOOR_EXTERNAL_URL=http://8.136.14.242:8000
     volumes:
       - ./conf:/app/conf
       - ./logs:/app/logs

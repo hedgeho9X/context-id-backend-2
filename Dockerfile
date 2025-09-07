@@ -40,7 +40,6 @@ COPY conf/config.yaml ./config/config.yaml
 
 # 复制静态文件目录
 COPY static/ ./static/
-COPY templates/ ./templates/
 
 # 创建必要的目录
 RUN mkdir -p /app/conf /app/config /app/logs

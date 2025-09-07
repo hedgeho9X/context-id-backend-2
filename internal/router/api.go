@@ -15,10 +15,10 @@ func RegisterAPIRoutes(group *ghttp.RouterGroup) {
 			"version": "1.0.0",
 			"endpoints": g.Map{
 				"auth": g.Map{
-					"login_url":  "/api/v1/auth/login-url",
-					"signup_url": "/api/v1/auth/signup-url",
-					"callback":   "/api/v1/auth/callback",
-					"user_info":  "/api/v1/user",
+					"login_url":      "/api/v1/auth/login-url",
+					"signup_url":     "/api/v1/auth/signup-url",
+					"token_exchange": "/api/v1/auth/callback", // POST: 前端用code+state交换token
+					"user_info":      "/api/v1/user",
 				},
 				"protected": g.Map{
 					"my_profile": "/api/v1/auth/my-profile-url",

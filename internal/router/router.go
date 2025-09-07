@@ -43,8 +43,7 @@ func InitRoutes(s *ghttp.Server) {
 				},
 			},
 			"static_files": g.Map{
-				"static":    "/static",
-				"templates": "/templates",
+				"static": "/static",
 			},
 		})
 	})

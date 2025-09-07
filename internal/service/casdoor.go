@@ -4,10 +4,13 @@ import (
 	"context"
 	"context-id-backend/internal/dao"
 	"context-id-backend/internal/model"
+	"crypto/rand"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"os"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/casdoor/casdoor-go-sdk/casdoorsdk"
@@ -27,9 +30,23 @@ type CasdoorConfig struct {
 	ApplicationName  string
 }
 
+// AppConfig 应用配置结构体
+type AppConfig struct {
+	ExternalUrl        string // 应用外部访问地址
+	CasdoorExternalUrl string // Casdoor外部访问地址
+}
+
+// StateStore State参数存储（用于CSRF防护）
+type StateStore struct {
+	states map[string]time.Time // state -> 过期时间
+	mutex  sync.RWMutex
+}
+
 // CasdoorService Casdoor认证服务
 type CasdoorService struct {
-	config *CasdoorConfig
+	config     *CasdoorConfig
+	appConfig  *AppConfig
+	stateStore *StateStore
 }
 
 var Casdoor = &CasdoorService{}
@@ -67,7 +84,22 @@ func (s *CasdoorService) Init(ctx context.Context) error {
 
 	s.config = config
 
-	// 4. 初始化Casdoor全局配置
+	// 4. 初始化state存储
+	s.stateStore = &StateStore{
+		states: make(map[string]time.Time),
+	}
+
+	// 启动state清理goroutine
+	go s.cleanupExpiredStates()
+
+	// 5. 加载应用配置
+	appConfig, err := s.loadAppConfig(ctx)
+	if err != nil {
+		return fmt.Errorf("应用配置加载失败: %w", err)
+	}
+	s.appConfig = appConfig
+
+	// 5. 初始化Casdoor全局配置
 	casdoorsdk.InitConfig(
 		config.Endpoint,
 		config.ClientId,
@@ -94,6 +126,78 @@ func (s *CasdoorService) Init(ctx context.Context) error {
 	}
 
 	return nil
+}
+
+// safeSubstring 安全地截取字符串，避免越界
+func (s *CasdoorService) safeSubstring(str string, maxLen int) string {
+	if len(str) <= maxLen {
+		return str
+	}
+	return str[:maxLen]
+}
+
+// generateState 生成随机state参数（用于CSRF防护）
+func (s *CasdoorService) generateState(ctx context.Context) (string, error) {
+	// 生成32字节随机数据
+	bytes := make([]byte, 32)
+	if _, err := rand.Read(bytes); err != nil {
+		return "", fmt.Errorf("failed to generate random state: %w", err)
+	}
+
+	state := base64.URLEncoding.EncodeToString(bytes)
+
+	// 存储state，设置10分钟过期时间
+	s.stateStore.mutex.Lock()
+	s.stateStore.states[state] = time.Now().Add(10 * time.Minute)
+	s.stateStore.mutex.Unlock()
+
+	g.Log().Debug(ctx, "Generated state:", s.safeSubstring(state, 16)+"...")
+	return state, nil
+}
+
+// validateState 验证state参数
+func (s *CasdoorService) validateState(ctx context.Context, state string) error {
+	if state == "" {
+		return fmt.Errorf("state parameter is empty")
+	}
+
+	s.stateStore.mutex.Lock()
+	defer s.stateStore.mutex.Unlock()
+
+	expireTime, exists := s.stateStore.states[state]
+	if !exists {
+		g.Log().Warning(ctx, "Invalid state parameter:", s.safeSubstring(state, 16)+"...")
+		return fmt.Errorf("invalid or expired state parameter")
+	}
+
+	// 检查是否过期
+	if time.Now().After(expireTime) {
+		delete(s.stateStore.states, state)
+		g.Log().Warning(ctx, "Expired state parameter:", s.safeSubstring(state, 16)+"...")
+		return fmt.Errorf("state parameter has expired")
+	}
+
+	// 使用后立即删除（一次性使用）
+	delete(s.stateStore.states, state)
+	g.Log().Debug(ctx, "State validation successful:", s.safeSubstring(state, 16)+"...")
+	return nil
+}
+
+// cleanupExpiredStates 清理过期的state参数
+func (s *CasdoorService) cleanupExpiredStates() {
+	ticker := time.NewTicker(5 * time.Minute) // 每5分钟清理一次
+	defer ticker.Stop()
+
+	for range ticker.C {
+		s.stateStore.mutex.Lock()
+		now := time.Now()
+		for state, expireTime := range s.stateStore.states {
+			if now.After(expireTime) {
+				delete(s.stateStore.states, state)
+			}
+		}
+		s.stateStore.mutex.Unlock()
+	}
 }
 
 // loadConfig 加载配置 (参考tutorial实现)
@@ -138,7 +242,10 @@ func (s *CasdoorService) loadConfig(ctx context.Context) (*CasdoorConfig, error)
 			}
 		}
 		if config.ExternalEndpoint == "" {
-			if externalEndpoint, err := cfg.Get(ctx, "casdoor.externalEndpoint"); err == nil && externalEndpoint != nil {
+			// 优先使用app.casdoorExternalUrl配置
+			if casdoorExternalUrl, err := cfg.Get(ctx, "app.casdoorExternalUrl"); err == nil && casdoorExternalUrl != nil {
+				config.ExternalEndpoint = casdoorExternalUrl.String()
+			} else if externalEndpoint, err := cfg.Get(ctx, "casdoor.externalEndpoint"); err == nil && externalEndpoint != nil {
 				config.ExternalEndpoint = externalEndpoint.String()
 			} else {
 				config.ExternalEndpoint = "http://localhost:8000"
@@ -196,6 +303,39 @@ func (s *CasdoorService) loadConfig(ctx context.Context) (*CasdoorConfig, error)
 	return config, nil
 }
 
+// loadAppConfig 加载应用配置
+func (s *CasdoorService) loadAppConfig(ctx context.Context) (*AppConfig, error) {
+	config := &AppConfig{}
+	cfg := g.Cfg()
+
+	// 从配置文件加载
+	if externalUrl, err := cfg.Get(ctx, "app.externalUrl"); err == nil && externalUrl != nil {
+		config.ExternalUrl = externalUrl.String()
+	} else {
+		config.ExternalUrl = "http://localhost:8080"
+	}
+
+	if casdoorExternalUrl, err := cfg.Get(ctx, "app.casdoorExternalUrl"); err == nil && casdoorExternalUrl != nil {
+		config.CasdoorExternalUrl = casdoorExternalUrl.String()
+	} else {
+		config.CasdoorExternalUrl = "http://localhost:8000"
+	}
+
+	// 环境变量覆盖配置文件
+	if externalUrl := os.Getenv("APP_EXTERNAL_URL"); externalUrl != "" {
+		config.ExternalUrl = externalUrl
+	}
+	if casdoorExternalUrl := os.Getenv("APP_CASDOOR_EXTERNAL_URL"); casdoorExternalUrl != "" {
+		config.CasdoorExternalUrl = casdoorExternalUrl
+	}
+
+	g.Log().Info(ctx, "✅ 应用配置加载完成:")
+	g.Log().Info(ctx, "   - External URL:", config.ExternalUrl)
+	g.Log().Info(ctx, "   - Casdoor External URL:", config.CasdoorExternalUrl)
+
+	return config, nil
+}
+
 // loadJwtSecret 加载JWT密钥 (参考tutorial的成功方法)
 func (s *CasdoorService) loadJwtSecret(ctx context.Context, jwtSecret string) string {
 	// 如果是文件路径，读取文件内容
@@ -239,16 +379,26 @@ func (s *CasdoorService) validateConfig(config *CasdoorConfig) error {
 
 // getExternalEndpoint 获取外部访问的endpoint（用于生成URL）
 func (s *CasdoorService) getExternalEndpoint() string {
+	// 优先使用应用配置中的Casdoor外部URL
+	if s.appConfig != nil && s.appConfig.CasdoorExternalUrl != "" {
+		return s.appConfig.CasdoorExternalUrl
+	}
 	if s.config.ExternalEndpoint != "" {
 		return s.config.ExternalEndpoint
 	}
 	return s.config.Endpoint
 }
 
-// GetLoginURL 获取Casdoor登录URL
-func (s *CasdoorService) GetLoginURL(ctx context.Context, redirectURI string) string {
+// GetLoginURL 获取Casdoor登录URL（带安全state参数）
+func (s *CasdoorService) GetLoginURL(ctx context.Context, redirectURI string) (string, string, error) {
 	if redirectURI == "" {
-		redirectURI = "http://localhost:8080/api/v1/auth/callback"
+		return "", "", fmt.Errorf("redirectURI不能为空")
+	}
+
+	// 生成安全的state参数
+	state, err := s.generateState(ctx)
+	if err != nil {
+		return "", "", fmt.Errorf("failed to generate state: %w", err)
 	}
 
 	// 使用SDK生成URL，然后替换endpoint
@@ -260,21 +410,44 @@ func (s *CasdoorService) GetLoginURL(ctx context.Context, redirectURI string) st
 		loginURL = strings.Replace(loginURL, s.config.Endpoint, externalEndpoint, 1)
 	}
 
-	g.Log().Info(ctx, "Generated login URL:", loginURL)
+	// 替换URL中的state参数为我们生成的安全state
+	// Casdoor SDK默认使用应用名称作为state
+	loginURL = strings.Replace(loginURL, "state="+s.config.ApplicationName, "state="+state, 1)
 
-	return loginURL
+	g.Log().Info(ctx, "Generated secure login URL with state:", s.safeSubstring(state, 16)+"...")
+
+	return loginURL, state, nil
 }
 
 // GetSignupURL 获取Casdoor注册URL
-func (s *CasdoorService) GetSignupURL(ctx context.Context, enablePassword bool, redirectURI string) string {
+func (s *CasdoorService) GetSignupURL(ctx context.Context, enablePassword bool, redirectURI string) (string, string, error) {
 	if redirectURI == "" {
-		redirectURI = "http://localhost:8080/api/v1/auth/callback"
+		return "", "", fmt.Errorf("redirectURI不能为空")
 	}
 
-	// 根据Casdoor SDK源码和官方文档：
-	// enablePassword = true:  简化注册页面 (仅密码注册)
-	// enablePassword = false: 完整OAuth2注册流程
-	signupURL := casdoorsdk.GetSignupUrl(enablePassword, redirectURI)
+	var signupURL string
+	var state string
+
+	if enablePassword {
+		// 简化注册页面 (仅密码注册)，不支持重定向
+		signupURL = casdoorsdk.GetSignupUrl(enablePassword, redirectURI)
+		state = "" // 简化模式不需要state
+	} else {
+		// 完整OAuth2注册流程，支持注册后重定向
+		// 生成安全的state参数
+		var err error
+		state, err = s.generateState(ctx)
+		if err != nil {
+			return "", "", fmt.Errorf("failed to generate state: %w", err)
+		}
+
+		// 使用SDK生成注册URL
+		signupURL = casdoorsdk.GetSignupUrl(enablePassword, redirectURI)
+
+		// 替换URL中的state参数为我们生成的安全state
+		// 注册URL实际上是基于登录URL生成的，所以也需要替换state
+		signupURL = strings.Replace(signupURL, "state="+s.config.ApplicationName, "state="+state, 1)
+	}
 
 	// 替换内部endpoint为外部endpoint
 	externalEndpoint := s.getExternalEndpoint()
@@ -282,9 +455,9 @@ func (s *CasdoorService) GetSignupURL(ctx context.Context, enablePassword bool, 
 		signupURL = strings.Replace(signupURL, s.config.Endpoint, externalEndpoint, 1)
 	}
 
-	g.Log().Info(ctx, "Generated signup URL (enablePassword=%t):", enablePassword, signupURL)
+	g.Log().Info(ctx, "Generated signup URL (enablePassword=%t, state=%s):", enablePassword, s.safeSubstring(state, 16)+"...")
 
-	return signupURL
+	return signupURL, state, nil
 }
 
 // GetMyProfileURL 获取当前用户资料页面URL
@@ -460,9 +633,15 @@ type UserInfo struct {
 	Avatar      string `json:"avatar"`
 }
 
-// HandleCallback 处理OAuth回调 (使用tutorial中的成功方法)
+// HandleCallback 处理OAuth回调 (使用tutorial中的成功方法，添加安全验证)
 func (s *CasdoorService) HandleCallback(ctx context.Context, code, state string) (*UserInfo, string, error) {
-	// 获取OAuth token
+	// 1. 验证state参数（CSRF防护）
+	if err := s.validateState(ctx, state); err != nil {
+		g.Log().Error(ctx, "State validation failed:", err)
+		return nil, "", fmt.Errorf("CSRF protection: %w", err)
+	}
+
+	// 2. 获取OAuth token
 	token, err := casdoorsdk.GetOAuthToken(code, state)
 	if err != nil {
 		g.Log().Error(ctx, "Failed to get OAuth token:", err)

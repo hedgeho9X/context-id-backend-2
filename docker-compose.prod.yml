@@ -1,0 +1,32 @@
+# 生产环境 Docker Compose 覆盖文件
+# 使用方法: docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+
+version: '3.8'
+
+services:
+  backend:
+    environment:
+      # 生产环境配置 - 请根据实际情况修改以下URL
+      # 示例: 如果您的服务器IP是 192.168.1.100
+      # - APP_EXTERNAL_URL=http://192.168.1.100:8080
+      # - APP_CASDOOR_EXTERNAL_URL=http://192.168.1.100:8000
+      
+      # 示例: 如果您有域名 example.com
+      # - APP_EXTERNAL_URL=https://api.example.com
+      # - APP_CASDOOR_EXTERNAL_URL=https://auth.example.com
+      
+      - APP_EXTERNAL_URL=${APP_EXTERNAL_URL:-http://YOUR_SERVER_IP:8080}
+      - APP_CASDOOR_EXTERNAL_URL=${APP_CASDOOR_EXTERNAL_URL:-http://YOUR_SERVER_IP:8000}
+    restart: unless-stopped
+
+  casdoor:
+    restart: unless-stopped
+
+  postgres:
+    restart: unless-stopped
+
+  casdoor-db:
+    restart: unless-stopped
+
+  redis:
+    restart: unless-stopped

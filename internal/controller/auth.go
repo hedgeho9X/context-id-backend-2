@@ -12,13 +12,31 @@ type AuthController struct{}
 
 var Auth = &AuthController{}
 
-// GetLoginURL 获取Casdoor登录URL
+// GetLoginURL 获取Casdoor登录URL（带安全state参数）
 func (c *AuthController) GetLoginURL(r *ghttp.Request) {
 	ctx := r.Context()
 
-	redirectURI := r.Get("redirect_uri", "http://localhost:8080/api/v1/auth/callback").String()
+	// 要求前端必须传入redirect_uri参数
+	redirectURI := r.Get("redirect_uri").String()
+	if redirectURI == "" {
+		r.Response.Status = 400
+		r.Response.WriteJson(g.Map{
+			"code":    400,
+			"message": "redirect_uri参数不能为空",
+		})
+		return
+	}
 
-	loginURL := service.Casdoor.GetLoginURL(ctx, redirectURI)
+	loginURL, _, err := service.Casdoor.GetLoginURL(ctx, redirectURI)
+	if err != nil {
+		g.Log().Error(ctx, "Failed to generate login URL:", err)
+		r.Response.Status = 500
+		r.Response.WriteJson(g.Map{
+			"code":    500,
+			"message": "生成登录URL失败: " + err.Error(),
+		})
+		return
+	}
 
 	r.Response.WriteJson(g.Map{
 		"code":    200,
@@ -33,11 +51,30 @@ func (c *AuthController) GetLoginURL(r *ghttp.Request) {
 func (c *AuthController) GetSignupURL(r *ghttp.Request) {
 	ctx := r.Context()
 
-	redirectURI := r.Get("redirect_uri", "http://localhost:8080/api/v1/auth/callback").String()
-	// enablePassword := r.Get("enable_password", "true").Bool()
-	//默认要求使用密码
-	enablePassword := true
-	signupURL := service.Casdoor.GetSignupURL(ctx, enablePassword, redirectURI)
+	// 要求前端必须传入redirect_uri参数
+	redirectURI := r.Get("redirect_uri").String()
+	if redirectURI == "" {
+		r.Response.Status = 400
+		r.Response.WriteJson(g.Map{
+			"code":    400,
+			"message": "redirect_uri参数不能为空",
+		})
+		return
+	}
+
+	// 注册应该使用OAuth2流程，以支持注册后自动登录和重定向
+	// enablePassword = false: 完整OAuth2注册流程，注册后可以重定向
+	enablePassword := false
+	signupURL, _, err := service.Casdoor.GetSignupURL(ctx, enablePassword, redirectURI)
+	if err != nil {
+		g.Log().Error(ctx, "Failed to generate signup URL:", err)
+		r.Response.Status = 500
+		r.Response.WriteJson(g.Map{
+			"code":    500,
+			"message": "生成注册URL失败: " + err.Error(),
+		})
+		return
+	}
 
 	r.Response.WriteJson(g.Map{
 		"code":    200,
@@ -79,47 +116,13 @@ func (c *AuthController) GetMyProfileURL(r *ghttp.Request) {
 	})
 }
 
-// Callback Casdoor回调处理 (标准OAuth2 GET请求)
-func (c *AuthController) Callback(r *ghttp.Request) {
-	ctx := r.Context()
+// 注意: 移除了GET /auth/callback方法
+// 在前后端分离架构中，Casdoor的redirect_uri应该指向前端页面
+// 前端页面获取code+state后，通过POST /auth/callback API交换token
 
-	// 只处理GET请求（标准OAuth2回调）
-	code := r.Get("code").String()
-	state := r.Get("state").String()
-
-	if code == "" {
-		r.Response.Status = 400
-		r.Response.WriteJson(g.Map{
-			"code":    400,
-			"message": "缺少授权码",
-		})
-		return
-	}
-
-	// 使用code交换token
-	userInfo, token, err := service.Casdoor.HandleCallback(ctx, code, state)
-	if err != nil {
-		g.Log().Error(ctx, "Login failed:", err)
-		r.Response.Status = 500
-		r.Response.WriteJson(g.Map{
-			"code":    500,
-			"message": "登录失败: " + err.Error(),
-		})
-		return
-	}
-
-	// 返回JSON格式的用户信息和token
-	r.Response.WriteJson(g.Map{
-		"code":    200,
-		"message": "登录成功",
-		"data": g.Map{
-			"access_token": token,
-			"user":         userInfo,
-		},
-	})
-}
-
-// Login 用户登录（处理前端传来的code和state）(使用tutorial中的成功方法)
+// Login OAuth2 Token交换API（前后端分离架构）
+// 前端通过POST请求发送code+state，后端返回access_token
+// 这是标准的OAuth2授权码流程的token交换步骤
 func (c *AuthController) Login(r *ghttp.Request) {
 	ctx := r.Context()
 
@@ -133,7 +136,6 @@ func (c *AuthController) Login(r *ghttp.Request) {
 		return
 	}
 
-	// 使用tutorial中的HandleCallback方法
 	userInfo, token, err := service.Casdoor.HandleCallback(ctx, req.Code, req.State)
 	if err != nil {
 		g.Log().Error(ctx, "Login failed:", err)
